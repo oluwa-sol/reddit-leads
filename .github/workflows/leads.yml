@@ -1,0 +1,37 @@
+name: Reddit Leads
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 */2 * * *"
+
+concurrency:
+  group: reddit-leads
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Check for new leads
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        run: python leads.py
+      - name: Save seen posts
+        run: |
+          git config user.name "reddit-leads-bot"
+          git config user.email "reddit-leads-bot@users.noreply.github.com"
+          git add seen_posts.json
+          git diff --cached --quiet || git commit -m "Update seen posts"
+          git push
